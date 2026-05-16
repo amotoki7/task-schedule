@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Daily Task Scheduler</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app">
+    <header class="header">
+      <h1>Daily Task Scheduler</h1>
+      <span class="today" id="today-label"></span>
+    </header>
+
+    <div class="content">
+      <!-- ===== Task Panel ===== -->
+      <aside class="task-panel">
+        <h2 class="panel-title">タスクリスト</h2>
+
+        <div class="task-form">
+          <input
+            type="text"
+            id="task-name"
+            placeholder="タスク名を入力..."
+            autocomplete="off"
+          >
+          <div class="duration-row">
+            <span class="duration-label">想定時間</span>
+            <input type="number" id="task-hours" min="0" max="23" value="0">
+            <span class="unit">時間</span>
+            <input type="number" id="task-mins"  min="0" max="59" value="30">
+            <span class="unit">分</span>
+          </div>
+          <button id="add-btn">＋ タスク追加</button>
+        </div>
+
+        <div class="task-table-wrap">
+          <table class="task-table">
+            <thead>
+              <tr>
+                <th>タスク</th>
+                <th>想定時間</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="task-tbody"></tbody>
+          </table>
+          <p class="empty-msg" id="empty-msg">タスクを追加してください</p>
+        </div>
+
+        <div class="drag-hint">↔ タスク行をドラッグしてスケジュールへ追加</div>
+      </aside>
+
+      <!-- ===== Schedule Panel ===== -->
+      <main class="schedule-panel">
+        <div class="schedule-header">
+          <h2 class="panel-title">タイムスケジュール</h2>
+          <span class="now-badge" id="now-badge"></span>
+        </div>
+
+        <div class="schedule-scroll" id="schedule-scroll">
+          <div class="schedule-inner">
+            <div class="time-axis"    id="time-axis"></div>
+            <div class="schedule-area" id="schedule-area"></div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
