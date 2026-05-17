@@ -30,6 +30,7 @@ let dragging = null;   // ドラッグ中の { task }
 document.addEventListener('DOMContentLoaded', () => {
   initDate();
   buildGrid();
+  loadTasks();
   updateClock();
   setInterval(updateClock, 30_000);
   scrollToNow();
@@ -167,6 +168,7 @@ function addTask() {
 
   tasks.push(task);
   renderRow(task);
+  saveTasks();
 
   nameEl.value  = '';
   hoursEl.value = '0';
@@ -214,6 +216,7 @@ function renderRow(task) {
 function deleteTask(id) {
   tasks = tasks.filter(t => t.id !== id);
   document.getElementById(`row-${id}`)?.remove();
+  saveTasks();
   if (tasks.length === 0) {
     document.getElementById('empty-msg').style.display = '';
   }
@@ -249,6 +252,7 @@ function openDurationEditor(task, cell, tr) {
     if (newDur > 0) task.dur = newDur;
     cell.textContent = fmtDur(task.dur);
     tr.draggable = true;
+    saveTasks();
   };
 
   const cancel = () => {
@@ -306,6 +310,32 @@ function placeBlock(task, startMin) {
     .addEventListener('click', () => block.remove());
 
   area.appendChild(block);
+}
+
+/* =========================================================
+   永続化 (localStorage)
+   ========================================================= */
+function saveTasks() {
+  localStorage.setItem('tasks', JSON.stringify(tasks));
+}
+
+function loadTasks() {
+  let saved;
+  try {
+    saved = JSON.parse(localStorage.getItem('tasks'));
+  } catch {
+    return;
+  }
+  if (!Array.isArray(saved) || saved.length === 0) return;
+
+  saved.forEach(task => {
+    tasks.push(task);
+    renderRow(task);
+  });
+
+  nextId   = Math.max(...tasks.map(t => t.id)) + 1;
+  colorIdx = tasks.length;
+  document.getElementById('empty-msg').style.display = 'none';
 }
 
 /* =========================================================
