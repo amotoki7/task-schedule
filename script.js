@@ -19,10 +19,12 @@ const COLORS = [
 /* =========================================================
    状態
    ========================================================= */
-let tasks    = [];
-let nextId   = 0;
-let colorIdx = 0;
-let dragging = null;   // ドラッグ中の { task }
+let tasks       = [];
+let nextId      = 0;
+let colorIdx    = 0;
+let dragging    = null;   // ドラッグ中の { task }
+let blocks      = [];     // 配置済みブロックのデータ
+let nextBlockId = 0;
 
 /* =========================================================
    初期化
@@ -31,6 +33,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initDate();
   buildGrid();
   loadTasks();
+  loadBlocks();
   updateClock();
   setInterval(updateClock, 30_000);
   scrollToNow();
@@ -281,7 +284,17 @@ function openDurationEditor(task, cell, tr) {
 /* =========================================================
    タスクブロック配置
    ========================================================= */
+
+// ドロップ時: データ登録 → 描画
 function placeBlock(task, startMin) {
+  const blockId = nextBlockId++;
+  blocks.push({ blockId, taskId: task.id, startMin });
+  saveBlocks();
+  renderBlock(task, startMin, blockId);
+}
+
+// DOM描画のみ（ロード時にも使用）
+function renderBlock(task, startMin, blockId) {
   const area   = document.getElementById('schedule-area');
   const top    = (startMin - START_MIN) * PX_PER_MIN;
   const maxH   = TOTAL_H - top;
@@ -295,6 +308,7 @@ function placeBlock(task, startMin) {
 
   const block = document.createElement('div');
   block.className = 'task-block';
+  block.dataset.blockId = blockId;
   block.style.cssText =
     `top:${top}px; height:${height}px; background:${task.color};`;
 
@@ -306,8 +320,11 @@ function placeBlock(task, startMin) {
     <div class="block-time-label">${startStr}–${endStr}（${fmtDur(task.dur)}）</div>
   `;
 
-  block.querySelector('.block-del')
-    .addEventListener('click', () => block.remove());
+  block.querySelector('.block-del').addEventListener('click', () => {
+    block.remove();
+    blocks = blocks.filter(b => b.blockId !== blockId);
+    saveBlocks();
+  });
 
   area.appendChild(block);
 }
@@ -317,6 +334,10 @@ function placeBlock(task, startMin) {
    ========================================================= */
 function saveTasks() {
   localStorage.setItem('tasks', JSON.stringify(tasks));
+}
+
+function saveBlocks() {
+  localStorage.setItem('blocks', JSON.stringify(blocks));
 }
 
 function loadTasks() {
@@ -336,6 +357,27 @@ function loadTasks() {
   nextId   = Math.max(...tasks.map(t => t.id)) + 1;
   colorIdx = tasks.length;
   document.getElementById('empty-msg').style.display = 'none';
+}
+
+function loadBlocks() {
+  let saved;
+  try {
+    saved = JSON.parse(localStorage.getItem('blocks'));
+  } catch {
+    return;
+  }
+  if (!Array.isArray(saved) || saved.length === 0) return;
+
+  // タスクが削除されていたらブロックも除外
+  blocks = saved.filter(b => tasks.some(t => t.id === b.taskId));
+  nextBlockId = blocks.length > 0 ? Math.max(...blocks.map(b => b.blockId)) + 1 : 0;
+
+  blocks.forEach(({ blockId, taskId, startMin }) => {
+    const task = tasks.find(t => t.id === taskId);
+    if (task) renderBlock(task, startMin, blockId);
+  });
+
+  saveBlocks(); // 不整合データを除去した状態で上書き
 }
 
 /* =========================================================
