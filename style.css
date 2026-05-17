@@ -350,6 +350,23 @@ body {
 }
 .block-del:hover { background: rgba(0,0,0,.4); }
 
+/* スケジュール直接入力 */
+.direct-ghost { opacity: .85; }
+
+.direct-input {
+  width: 100%;
+  background: transparent;
+  border: none;
+  border-bottom: 1.5px solid rgba(255,255,255,.6);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  outline: none;
+  padding: 2px 0;
+  font-family: inherit;
+}
+.direct-input::placeholder { color: rgba(255,255,255,.55); }
+
 /* リサイズハンドル */
 .block-resize-handle {
   position: absolute;

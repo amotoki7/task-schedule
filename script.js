@@ -42,6 +42,12 @@ document.addEventListener('DOMContentLoaded', () => {
     .addEventListener('click', addTask);
   document.getElementById('task-name')
     .addEventListener('keydown', e => { if (e.key === 'Enter') addTask(); });
+
+  document.getElementById('schedule-area').addEventListener('click', e => {
+    if (e.target.classList.contains('time-slot')) {
+      showDirectInput(parseInt(e.target.dataset.startMin));
+    }
+  });
 });
 
 /* =========================================================
@@ -285,6 +291,53 @@ function openDurationEditor(task, cell, tr) {
    タスクブロック配置
    ========================================================= */
 
+// スロットをクリックしてその場で入力
+function showDirectInput(startMin) {
+  const area = document.getElementById('schedule-area');
+  if (area.querySelector('.direct-ghost')) return; // 既に入力中なら無視
+
+  const top   = (startMin - START_MIN) * PX_PER_MIN;
+  const color = COLORS[colorIdx % COLORS.length];
+
+  const ghost = document.createElement('div');
+  ghost.className = 'task-block direct-ghost';
+  ghost.style.cssText = `top:${top}px; height:60px; background:${color};`;
+  ghost.innerHTML = `<input class="direct-input" type="text" placeholder="テキストを入力..." maxlength="50">`;
+  area.appendChild(ghost);
+
+  const input = ghost.querySelector('.direct-input');
+  input.focus();
+
+  let done = false;
+  const commit = () => {
+    if (done) return;
+    done = true;
+    const name = input.value.trim();
+    ghost.remove();
+    if (name) placeDirectBlock(name, color, startMin);
+  };
+  const cancel = () => {
+    if (done) return;
+    done = true;
+    ghost.remove();
+  };
+
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter')  { e.preventDefault(); commit(); }
+    if (e.key === 'Escape') { e.preventDefault(); cancel(); }
+  });
+  input.addEventListener('blur', () => setTimeout(commit, 120));
+}
+
+// 直接入力ブロックのデータ登録 → 描画
+function placeDirectBlock(name, color, startMin) {
+  const blockId = nextBlockId++;
+  colorIdx++;
+  blocks.push({ blockId, taskId: null, name, color, startMin, dur: 30 });
+  saveBlocks();
+  renderBlock({ id: null, name, color }, startMin, blockId, 30);
+}
+
 // ドロップ時: データ登録 → 描画
 function placeBlock(task, startMin) {
   const blockId = nextBlockId++;
@@ -416,9 +469,13 @@ function loadBlocks() {
   blocks = saved.filter(b => tasks.some(t => t.id === b.taskId));
   nextBlockId = blocks.length > 0 ? Math.max(...blocks.map(b => b.blockId)) + 1 : 0;
 
-  blocks.forEach(({ blockId, taskId, startMin, dur }) => {
-    const task = tasks.find(t => t.id === taskId);
-    if (task) renderBlock(task, startMin, blockId, dur ?? task.dur);
+  blocks.forEach(({ blockId, taskId, startMin, dur, name, color }) => {
+    if (taskId == null) {
+      if (name) renderBlock({ id: null, name, color }, startMin, blockId, dur ?? 30);
+    } else {
+      const task = tasks.find(t => t.id === taskId);
+      if (task) renderBlock(task, startMin, blockId, dur ?? task.dur);
+    }
   });
 
   saveBlocks(); // 不整合データを除去した状態で上書き
