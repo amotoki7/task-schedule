@@ -156,7 +156,29 @@ body {
   flex-shrink: 0;
 }
 .task-name-txt  { vertical-align: middle; }
-.duration-cell  { white-space: nowrap; color: #555; }
+.duration-cell {
+  white-space: nowrap;
+  color: #555;
+  cursor: pointer;
+}
+.duration-cell:hover { color: #3f51b5; text-decoration: underline dotted; }
+
+/* インライン編集 */
+.dur-edit {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+.dur-edit input[type="number"] {
+  width: 40px;
+  padding: 1px 4px;
+  border: 1.5px solid #3f51b5;
+  border-radius: 4px;
+  font-size: 12px;
+  text-align: center;
+  outline: none;
+}
+.dur-unit { font-size: 12px; color: #555; }
 
 .del-btn {
   background: none;

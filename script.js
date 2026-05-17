@@ -188,12 +188,15 @@ function renderRow(task) {
       <span class="color-dot" style="background:${task.color}"></span>
       <span class="task-name-txt">${esc(task.name)}</span>
     </td>
-    <td class="duration-cell">${fmtDur(task.dur)}</td>
+    <td class="duration-cell" title="クリックして編集">${fmtDur(task.dur)}</td>
     <td><button class="del-btn" title="削除">×</button></td>
   `;
 
   tr.querySelector('.del-btn')
     .addEventListener('click', () => deleteTask(task.id));
+
+  const durCell = tr.querySelector('.duration-cell');
+  durCell.addEventListener('click', () => openDurationEditor(task, durCell, tr));
 
   tr.addEventListener('dragstart', e => {
     dragging = { task };
@@ -214,6 +217,61 @@ function deleteTask(id) {
   if (tasks.length === 0) {
     document.getElementById('empty-msg').style.display = '';
   }
+}
+
+function openDurationEditor(task, cell, tr) {
+  if (cell.querySelector('.dur-edit')) return;
+
+  const oldH = Math.floor(task.dur / 60);
+  const oldM = task.dur % 60;
+
+  cell.innerHTML = `
+    <span class="dur-edit">
+      <input class="dur-h" type="number" min="0" max="23" value="${oldH}">
+      <span class="dur-unit">時間</span>
+      <input class="dur-m" type="number" min="0" max="59" value="${oldM}">
+      <span class="dur-unit">分</span>
+    </span>
+  `;
+
+  const hInput = cell.querySelector('.dur-h');
+  const mInput = cell.querySelector('.dur-m');
+  tr.draggable = false;
+
+  let done = false;
+
+  const commit = () => {
+    if (done) return;
+    done = true;
+    const h      = Math.max(0, parseInt(hInput.value) || 0);
+    const m      = Math.max(0, parseInt(mInput.value) || 0);
+    const newDur = h * 60 + m;
+    if (newDur > 0) task.dur = newDur;
+    cell.textContent = fmtDur(task.dur);
+    tr.draggable = true;
+  };
+
+  const cancel = () => {
+    if (done) return;
+    done = true;
+    cell.textContent = fmtDur(task.dur);
+    tr.draggable = true;
+  };
+
+  [hInput, mInput].forEach(input => {
+    input.addEventListener('keydown', e => {
+      if (e.key === 'Enter')  { e.preventDefault(); commit(); }
+      if (e.key === 'Escape') { e.preventDefault(); cancel(); }
+    });
+    input.addEventListener('focusout', () => {
+      setTimeout(() => {
+        if (!cell.contains(document.activeElement)) commit();
+      }, 100);
+    });
+  });
+
+  hInput.focus();
+  hInput.select();
 }
 
 /* =========================================================
