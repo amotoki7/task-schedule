@@ -288,37 +288,33 @@ function openDurationEditor(task, cell, tr) {
 // ドロップ時: データ登録 → 描画
 function placeBlock(task, startMin) {
   const blockId = nextBlockId++;
-  blocks.push({ blockId, taskId: task.id, startMin });
+  blocks.push({ blockId, taskId: task.id, startMin, dur: task.dur });
   saveBlocks();
-  renderBlock(task, startMin, blockId);
+  renderBlock(task, startMin, blockId, task.dur);
 }
 
 // DOM描画のみ（ロード時にも使用）
-function renderBlock(task, startMin, blockId) {
+function renderBlock(task, startMin, blockId, dur) {
   const area   = document.getElementById('schedule-area');
   const top    = (startMin - START_MIN) * PX_PER_MIN;
   const maxH   = TOTAL_H - top;
-  const height = Math.max(Math.min(task.dur * PX_PER_MIN, maxH), 28);
-
-  const endMin   = Math.min(startMin + task.dur, END_HOUR * 60);
-  const startStr = `${pad(Math.floor(startMin / 60))}:${pad(startMin % 60)}`;
-  const endStr   = endMin === 1440
-    ? '24:00'
-    : `${pad(Math.floor(endMin / 60))}:${pad(endMin % 60)}`;
+  const height = Math.max(Math.min(dur * PX_PER_MIN, maxH), 60);
 
   const block = document.createElement('div');
   block.className = 'task-block';
   block.dataset.blockId = blockId;
-  block.style.cssText =
-    `top:${top}px; height:${height}px; background:${task.color};`;
+  block.style.cssText = `top:${top}px; height:${height}px; background:${task.color};`;
 
   block.innerHTML = `
     <div class="block-header">
       <span class="block-name">${esc(task.name)}</span>
       <button class="block-del" title="削除">×</button>
     </div>
-    <div class="block-time-label">${startStr}–${endStr}（${fmtDur(task.dur)}）</div>
+    <div class="block-time-label"></div>
+    <div class="block-resize-handle" title="ドラッグして時間を調整"></div>
   `;
+
+  updateBlockTimeLabel(block, startMin, dur);
 
   block.querySelector('.block-del').addEventListener('click', () => {
     block.remove();
@@ -326,7 +322,55 @@ function renderBlock(task, startMin, blockId) {
     saveBlocks();
   });
 
+  initResize(block, blockId, startMin, maxH);
+
   area.appendChild(block);
+}
+
+function updateBlockTimeLabel(block, startMin, dur) {
+  const endMin   = Math.min(startMin + dur, END_HOUR * 60);
+  const startStr = `${pad(Math.floor(startMin / 60))}:${pad(startMin % 60)}`;
+  const endStr   = endMin === 1440
+    ? '24:00'
+    : `${pad(Math.floor(endMin / 60))}:${pad(endMin % 60)}`;
+  block.querySelector('.block-time-label').textContent =
+    `${startStr}–${endStr}（${fmtDur(dur)}）`;
+}
+
+function initResize(block, blockId, startMin, maxH) {
+  const handle = block.querySelector('.block-resize-handle');
+
+  handle.addEventListener('mousedown', e => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const startY  = e.clientY;
+    const startH  = block.offsetHeight;
+    const SNAP_PX = 60; // 30分 = 60px
+
+    const onMove = e => {
+      const dy      = e.clientY - startY;
+      const rawH    = Math.max(SNAP_PX, startH + dy);
+      const snapped = Math.min(Math.round(rawH / SNAP_PX) * SNAP_PX, maxH);
+      block.style.height = `${snapped}px`;
+      updateBlockTimeLabel(block, startMin, snapped / PX_PER_MIN);
+    };
+
+    const onUp = () => {
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+
+      const newDur    = parseInt(block.style.height) / PX_PER_MIN;
+      const blockData = blocks.find(b => b.blockId === blockId);
+      if (blockData) {
+        blockData.dur = newDur;
+        saveBlocks();
+      }
+    };
+
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  });
 }
 
 /* =========================================================
@@ -372,9 +416,9 @@ function loadBlocks() {
   blocks = saved.filter(b => tasks.some(t => t.id === b.taskId));
   nextBlockId = blocks.length > 0 ? Math.max(...blocks.map(b => b.blockId)) + 1 : 0;
 
-  blocks.forEach(({ blockId, taskId, startMin }) => {
+  blocks.forEach(({ blockId, taskId, startMin, dur }) => {
     const task = tasks.find(t => t.id === taskId);
-    if (task) renderBlock(task, startMin, blockId);
+    if (task) renderBlock(task, startMin, blockId, dur ?? task.dur);
   });
 
   saveBlocks(); // 不整合データを除去した状態で上書き
