@@ -389,3 +389,100 @@ body {
 
 .task-table-wrap::-webkit-scrollbar      { width: 4px; }
 .task-table-wrap::-webkit-scrollbar-thumb { background: #ddd; border-radius: 2px; }
+
+/* ===== Tab Bar (モバイルのみ表示) ===== */
+.tab-bar { display: none; }
+
+/* ===== モバイル選択バナー ===== */
+.mob-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #e8eaf6;
+  color: #3f51b5;
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 8px;
+  gap: 8px;
+}
+.mob-banner button {
+  background: none;
+  border: 1px solid #9fa8da;
+  border-radius: 6px;
+  color: #3f51b5;
+  padding: 4px 10px;
+  font-size: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+/* モバイル: 選択中タスク行ハイライト */
+.task-table tbody tr.mob-selected {
+  background: #e8eaf6 !important;
+  outline: 2px solid #3f51b5;
+  outline-offset: -2px;
+}
+
+/* ===== Responsive: スマートフォン ===== */
+@media (max-width: 768px) {
+  .app { height: 100dvh; }
+
+  .content { flex-direction: column; }
+
+  /* タブバー */
+  .tab-bar {
+    display: flex;
+    background: #fff;
+    border-bottom: 2px solid #eee;
+    flex-shrink: 0;
+    z-index: 10;
+  }
+  .tab-btn {
+    flex: 1;
+    padding: 12px 8px;
+    border: none;
+    background: none;
+    font-size: 14px;
+    font-weight: 600;
+    color: #aaa;
+    cursor: pointer;
+    border-bottom: 3px solid transparent;
+    transition: all .2s;
+    font-family: inherit;
+  }
+  .tab-btn.active {
+    color: #3f51b5;
+    border-bottom-color: #3f51b5;
+  }
+
+  /* タブ切替 */
+  .tab-hidden { display: none !important; }
+
+  /* タスクパネル */
+  .task-panel {
+    width: 100%;
+    min-width: unset;
+    border-right: none;
+    border-bottom: none;
+    flex: 1;
+  }
+
+  /* スケジュールパネル */
+  .schedule-panel { padding: 10px; }
+
+  .drag-hint { display: none; }
+
+  /* ヘッダー */
+  .header h1  { font-size: 1rem; }
+  .today      { font-size: .75rem; }
+
+  /* タッチ操作しやすいサイズ */
+  .del-btn  { padding: 6px 12px; }
+  #add-btn  { padding: 12px; font-size: 15px; }
+  .task-table td, .task-table th { padding: 10px 8px; }
+
+  /* リサイズハンドルを太く */
+  .block-resize-handle { height: 16px; touch-action: none; }
+}

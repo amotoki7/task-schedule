@@ -14,6 +14,12 @@
     </header>
 
     <div class="content">
+      <!-- モバイル用タブバー -->
+      <nav class="tab-bar">
+        <button class="tab-btn active" data-tab="task">タスクリスト</button>
+        <button class="tab-btn" data-tab="schedule">スケジュール</button>
+      </nav>
+
       <!-- ===== Task Panel ===== -->
       <aside class="task-panel">
         <h2 class="panel-title">タスクリスト</h2>
@@ -57,6 +63,12 @@
         <div class="schedule-header">
           <h2 class="panel-title">タイムスケジュール</h2>
           <span class="now-badge" id="now-badge"></span>
+        </div>
+
+        <!-- モバイル用タスク選択バナー -->
+        <div class="mob-banner" id="mob-banner" style="display:none">
+          <span id="mob-banner-text"></span>
+          <button id="mob-banner-cancel">キャンセル</button>
         </div>
 
         <div class="schedule-scroll" id="schedule-scroll">

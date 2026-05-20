@@ -19,12 +19,13 @@ const COLORS = [
 /* =========================================================
    状態
    ========================================================= */
-let tasks       = [];
-let nextId      = 0;
-let colorIdx    = 0;
-let dragging    = null;   // ドラッグ中の { task }
-let blocks      = [];     // 配置済みブロックのデータ
-let nextBlockId = 0;
+let tasks        = [];
+let nextId       = 0;
+let colorIdx     = 0;
+let dragging     = null;   // ドラッグ中の { task }
+let blocks       = [];     // 配置済みブロックのデータ
+let nextBlockId  = 0;
+let selectedTask = null;   // モバイルタップ選択中のタスク
 
 /* =========================================================
    初期化
@@ -43,12 +44,47 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('task-name')
     .addEventListener('keydown', e => { if (e.key === 'Enter') addTask(); });
 
+  // タブ切替（モバイル）
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => switchTab(btn.dataset.tab));
+  });
+
+  // モバイル選択キャンセル
+  document.getElementById('mob-banner-cancel')
+    .addEventListener('click', clearSelection);
+
+  // スケジュールエリアのクリック（直接入力 or モバイルタスク配置）
   document.getElementById('schedule-area').addEventListener('click', e => {
-    if (e.target.classList.contains('time-slot')) {
-      showDirectInput(parseInt(e.target.dataset.startMin));
+    if (!e.target.classList.contains('time-slot')) return;
+    const startMin = parseInt(e.target.dataset.startMin);
+    if (selectedTask) {
+      placeBlock(selectedTask, startMin);
+      clearSelection();
+    } else {
+      showDirectInput(startMin);
     }
   });
 });
+
+/* =========================================================
+   モバイル: タブ切替・選択管理
+   ========================================================= */
+function switchTab(name) {
+  document.querySelectorAll('.tab-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.tab === name);
+  });
+  document.querySelector('.task-panel')
+    .classList.toggle('tab-hidden', name !== 'task');
+  document.querySelector('.schedule-panel')
+    .classList.toggle('tab-hidden', name !== 'schedule');
+}
+
+function clearSelection() {
+  selectedTask = null;
+  document.querySelectorAll('#task-tbody tr')
+    .forEach(r => r.classList.remove('mob-selected'));
+  document.getElementById('mob-banner').style.display = 'none';
+}
 
 /* =========================================================
    日付・時刻
@@ -204,10 +240,29 @@ function renderRow(task) {
   `;
 
   tr.querySelector('.del-btn')
-    .addEventListener('click', () => deleteTask(task.id));
+    .addEventListener('click', e => { e.stopPropagation(); deleteTask(task.id); });
 
   const durCell = tr.querySelector('.duration-cell');
-  durCell.addEventListener('click', () => openDurationEditor(task, durCell, tr));
+  durCell.addEventListener('click', e => {
+    e.stopPropagation();
+    openDurationEditor(task, durCell, tr);
+  });
+
+  // モバイル: タップでタスク選択 → スケジュールタブへ切替
+  tr.addEventListener('click', () => {
+    if (window.innerWidth > 768) return;
+    if (selectedTask?.id === task.id) {
+      clearSelection();
+    } else {
+      clearSelection();
+      selectedTask = task;
+      tr.classList.add('mob-selected');
+      document.getElementById('mob-banner-text').textContent =
+        `「${task.name}」を配置する時間をタップ`;
+      document.getElementById('mob-banner').style.display = '';
+      switchTab('schedule');
+    }
+  });
 
   tr.addEventListener('dragstart', e => {
     dragging = { task };
@@ -391,39 +446,44 @@ function updateBlockTimeLabel(block, startMin, dur) {
 }
 
 function initResize(block, blockId, startMin, maxH) {
-  const handle = block.querySelector('.block-resize-handle');
+  const handle  = block.querySelector('.block-resize-handle');
+  const SNAP_PX = 60; // 30分 = 60px
 
-  handle.addEventListener('mousedown', e => {
-    e.preventDefault();
-    e.stopPropagation();
-
-    const startY  = e.clientY;
-    const startH  = block.offsetHeight;
-    const SNAP_PX = 60; // 30分 = 60px
-
-    const onMove = e => {
-      const dy      = e.clientY - startY;
-      const rawH    = Math.max(SNAP_PX, startH + dy);
-      const snapped = Math.min(Math.round(rawH / SNAP_PX) * SNAP_PX, maxH);
+  const buildHandlers = (startY, startH) => {
+    const onMove = clientY => {
+      const snapped = Math.min(
+        Math.round(Math.max(SNAP_PX, startH + clientY - startY) / SNAP_PX) * SNAP_PX,
+        maxH
+      );
       block.style.height = `${snapped}px`;
       updateBlockTimeLabel(block, startMin, snapped / PX_PER_MIN);
     };
-
-    const onUp = () => {
-      document.removeEventListener('mousemove', onMove);
-      document.removeEventListener('mouseup', onUp);
-
-      const newDur    = parseInt(block.style.height) / PX_PER_MIN;
-      const blockData = blocks.find(b => b.blockId === blockId);
-      if (blockData) {
-        blockData.dur = newDur;
-        saveBlocks();
-      }
+    const onEnd = () => {
+      const bd = blocks.find(b => b.blockId === blockId);
+      if (bd) { bd.dur = parseInt(block.style.height) / PX_PER_MIN; saveBlocks(); }
     };
+    return { onMove, onEnd };
+  };
 
-    document.addEventListener('mousemove', onMove);
-    document.addEventListener('mouseup', onUp);
+  // マウス
+  handle.addEventListener('mousedown', e => {
+    e.preventDefault(); e.stopPropagation();
+    const { onMove, onEnd } = buildHandlers(e.clientY, block.offsetHeight);
+    const mm = e => onMove(e.clientY);
+    const mu = () => { onEnd(); document.removeEventListener('mousemove', mm); document.removeEventListener('mouseup', mu); };
+    document.addEventListener('mousemove', mm);
+    document.addEventListener('mouseup', mu);
   });
+
+  // タッチ
+  handle.addEventListener('touchstart', e => {
+    e.preventDefault(); e.stopPropagation();
+    const { onMove, onEnd } = buildHandlers(e.touches[0].clientY, block.offsetHeight);
+    const tm = e => { e.preventDefault(); onMove(e.touches[0].clientY); };
+    const te = () => { onEnd(); document.removeEventListener('touchmove', tm); document.removeEventListener('touchend', te); };
+    document.addEventListener('touchmove', tm, { passive: false });
+    document.addEventListener('touchend', te);
+  }, { passive: false });
 }
 
 /* =========================================================
